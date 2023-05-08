@@ -4,45 +4,49 @@ import {
   HttpCode,
   HttpStatus,
   Post,
-  Req,
   UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { AuthDto } from './dto';
 import { Tokens } from './types';
+import { AtGuard, RtGuard } from '../common/guards';
+import { GetCurrentUserId } from '../common/decorators/get-current-user-id.decorator';
+import { GetCurrentUser } from '../common/decorators/get-current-user.decorator';
+import { Public } from '../common/decorators/public.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  @Public()
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
   signup(@Body() dto: AuthDto): Promise<Tokens> {
     return this.authService.signup(dto);
   }
 
+  @Public()
   @Post('signin')
   @HttpCode(HttpStatus.OK)
   signin(@Body() dto: AuthDto): Promise<Tokens> {
     return this.authService.signin(dto);
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AtGuard)
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  logout(@Req() req: Request) {
-    const userId = req.user['sub'];
+  logout(@GetCurrentUserId() userId: number) {
     return this.authService.logout(userId);
   }
 
-  @UseGuards(AuthGuard('jwt-refresh'))
+  @Public()
+  @UseGuards(RtGuard)
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  refresh(@Req() req: Request): Promise<Tokens> {
-    const userId = req.user['sub'];
-    const refreshToken = req.user['refreshToken'];
+  refresh(
+    @GetCurrentUserId() userId: number,
+    @GetCurrentUser('refreshToken') refreshToken: string,
+  ): Promise<Tokens> {
     return this.authService.refresh(userId, refreshToken);
   }
 }
